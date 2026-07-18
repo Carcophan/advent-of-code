@@ -1,0 +1,7 @@
+-e git+https://github.com/Carcophan/advent-of-code.git@2892c708e45ddebcfdeee11756d42460224225bd#egg=aoc
+iniconfig==2.3.0
+packaging==26.2
+pluggy==1.6.0
+Pygments==2.20.0
+pytest==9.1.1
+ruff==0.15.21
