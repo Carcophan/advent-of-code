@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from day2 import solve_part_2
+from day3 import solve_part_1
 
 
 def read_lines(filepath: str | Path) -> list[str]:
@@ -14,7 +14,7 @@ def read_lines(filepath: str | Path) -> list[str]:
 
 
 if __name__ == "__main__":
-    input_file = Path(__file__).parent / "day2-input.txt"
+    input_file = Path(__file__).parent / "day3-input.txt"
     lines = read_lines(input_file)
-    result = solve_part_2(lines)
+    result = solve_part_1(lines)
     print(result)
