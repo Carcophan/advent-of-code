@@ -1,115 +1,97 @@
-from asyncio import exceptions
-from asyncio import exceptions
-from asyncio import exceptions
-from asyncio import exceptions
-from asyncio import exceptions
-from asyncio import exceptions
-from enum import unique
-from enum import Enum
+from functools import cached_property
+from enum import Enum, unique
 from dataclasses import dataclass
+from typing import Self
+
 
 @unique
 class LocationType(Enum):
     EMPTY = 0
     PAPER_ROLL = 1
 
-    @staticmethod
-    def from_string(s: str):
-        match(s):
-            case '.':
-                return LocationType.EMPTY
-            case '@':
-                return LocationType.PAPER_ROLL
-            case _:
-                raise ValueError(f"unknown LocationType char {s}")
+    @classmethod
+    def from_string(cls, char: str) -> Self:
+        if char == '.': return cls.EMPTY
+        if char == '@': return cls.PAPER_ROLL
+        raise ValueError(f"Unknown LocationType char: {char}")
+        
 
-@dataclass(slots=True, frozen=True)
+@dataclass(frozen=True)
 class Position:
     x: int
     y: int
+    board_size_width: int
+    board_size_height: int
 
-def create_position(x: int, y: int):
-    return Position(x, y)
-
-@dataclass(slots=True, frozen=True)
-class Location:
-    location_type: LocationType
-    position: Position
-    neighbouring_positions: set[Position]
-
-
-def create_location(location_type: LocationType, position: Position, neighbouring_positions: set[Position]) -> Location:
-    return Location(location_type=location_type, position=position, neighbouring_positions=neighbouring_positions)
+    @cached_property
+    def all_neighbours(self) -> set['Position']:
+        """Calculates valid neighbours based on grid boundaries."""
+        neighbours = set()
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                if dx == 0 and dy == 0:
+                    continue
+                nx, ny = self.x + dx, self.y + dy
+                if 0 <= nx < self.board_size_width and 0 <= ny < self.board_size_height:
+                    neighbours.add(Position(nx, ny, self.board_size_width, self.board_size_height))
+        return neighbours
 
 
 @dataclass(slots=True, frozen=True)
 class PrintingDepartment:
-    size: tuple[int,int]
-    locations: dict[Position, Location]
+    width: int
+    height: int
+    _locations: dict[Position, LocationType]
+
+    @classmethod
+    def from_lines(cls, lines: list[str]) -> Self:
+        width = len(lines[0])
+        height = len(lines)
+        locations: dict[Position, LocationType] = {}
+        for y, line in enumerate(lines):
+            for x, char in enumerate(line):
+                locations[Position(x, y, width, height)] = LocationType.from_string(char)
+        return cls(width=width, height=height, _locations=locations)
+
+    def get_type_at(self, pos: Position) -> LocationType:
+        return self._locations.get(pos, LocationType.EMPTY)
+
+    def is_accessible_by_forklift(self, pos: Position) -> bool:
+        if self.get_type_at(pos) != LocationType.PAPER_ROLL:
+            return False
+            
+        neighbours = pos.all_neighbours
+        paper_roll_neighbours = sum(
+            1 for n in neighbours if self.get_type_at(n) == LocationType.PAPER_ROLL
+        )
+        return paper_roll_neighbours < 4
+
+    def _remove_paper_roll(self, position: Position):
+        self._locations[position]=LocationType.EMPTY
+
+    def find_all_accessible_paper_roll_positions(self) -> list[Position]:
+        return [
+           pos for pos, l_type in self._locations.items() if self.is_accessible_by_forklift(pos)
+        ]
+    
 
     @property
     def forklift_access_locations(self) -> int:
-        result = 0
-        for loc in self.locations.values():
-            if loc.location_type==LocationType.PAPER_ROLL:
-                empty_np = sum (
-                    self.locations[np].location_type==LocationType.PAPER_ROLL for 
-                    np in loc.neighbouring_positions
-                )
-                if empty_np < 4:
-                    result += 1
-        return result
+        return sum(
+            1 for pos in self._locations 
+            if self.is_accessible_by_forklift(pos)
+        )
 
-def determine_neighbouring_positions(position: Position, dep_size: tuple[int,int]):
-    x = position.x
-    y = position.y
+def solve_part_2(lines: list[str]) -> int:
+    pd = PrintingDepartment.from_lines(lines)
 
-    size_x, size_y = dep_size
+    paper_roll_pos_list = pd.find_all_accessible_paper_roll_positions()
 
-    np: set[Position] = set()
+    result = 0
+    while len(paper_roll_pos_list) > 0:
+        for pos in paper_roll_pos_list:
+            pd._remove_paper_roll(pos)
+            result += 1
+        paper_roll_pos_list = pd.find_all_accessible_paper_roll_positions()
 
-    if y > 0:
-        np.add(create_position(x, y-1))
-
-    if x > 0:
-        np.add(create_position(x-1, y))    
-
-    if y < size_y-1:
-        np.add(create_position(x, y+1))
-
-    if x < size_x - 1:
-        np.add(create_position(x+1, y))
-
-    if y > 0 and x > 0:  
-        np.add(create_position(x-1, y-1))
-
-    if y > 0 and x < size_x - 1:
-        np.add(create_position(x+1, y-1))
-
-    if y < size_y-1 and x < size_x -1:
-        np.add(create_position(x+1, y+1))    
-
-    if y < size_y-1 and x > 0:
-        np.add(create_position(x-1, y+1))
-
-    return np
-            
-
-
-def create_printing_department(lines: list[str]):
-    size = (len(lines[0]), len(lines))
-    locations: dict[Position, Location] = {}
-    for i, line in enumerate(lines):
-        for j, char in enumerate(line):
-            location_type = LocationType.from_string(char)
-            position = create_position(i,j)
-            neighboring_positions = determine_neighbouring_positions(position, size)
-            location = create_location(position=position, location_type=location_type, neighbouring_positions=neighboring_positions)
-
-            locations[position] = location
-    return PrintingDepartment(size=size, locations=locations)
-
-        
-def solve_part_1(lines: list[str]) -> int:
-    pd = create_printing_department(lines)
-    return pd.forklift_access_locations
+    return result

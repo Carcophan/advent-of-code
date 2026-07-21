@@ -1,7 +1,7 @@
+from day4 import solve_part_2
 import time
 from pathlib import Path
 
-from day4 import solve_part_1
 
 
 def read_lines(filepath: str | Path) -> list[str]:
@@ -19,7 +19,7 @@ if __name__ == "__main__":
     lines = read_lines(input_file)
 
     start_time = time.perf_counter()
-    result = solve_part_1(lines)
+    result = solve_part_2(lines)
     execution_time = time.perf_counter() - start_time
     print(f"Result: {result}")
     print(f"Execution time: {execution_time:.6f} seconds")
